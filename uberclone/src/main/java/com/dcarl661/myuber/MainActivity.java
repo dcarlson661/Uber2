@@ -9,15 +9,22 @@ import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Button;
+import android.widget.Switch;
 
+import com.parse.LogInCallback;
 import com.parse.Parse;
 import com.parse.ParseACL;
+import com.parse.ParseAnonymousUtils;
 import com.parse.ParseException;
 import com.parse.ParseObject;
 import com.parse.ParseUser;
 import com.parse.SaveCallback;
 
 public class MainActivity extends AppCompatActivity {
+
+    Switch aSwitch;
+    Button button;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,14 +70,37 @@ public class MainActivity extends AppCompatActivity {
                 .server("http://ec2-13-57-220-78.us-west-1.compute.amazonaws.com/parse/")
                 .build()
         );
-
-        ParseUser.enableAutomaticUser();
+        //ParseUser.enableAutomaticUser();
         ParseACL defaultACL = new ParseACL();
         defaultACL.setPublicReadAccess(true);
         defaultACL.setPublicWriteAccess(true);
         ParseACL.setDefaultACL(defaultACL, true);
 
+        ////////////////Put all my stuff here
 
+        button=findViewById(R.id.button);
+        aSwitch=findViewById(R.id.userTypeSwitch);
+
+        ParseUser user=ParseUser.getCurrentUser();
+        if(user==null){
+            ParseAnonymousUtils.logIn(new LogInCallback() {
+                @Override
+                public void done(ParseUser user, ParseException e) {
+                    if(e==null){
+                        Log.i("info", "Anonymous login successful");
+                    }
+                    else{
+                        Log.i("info", "Anonymous login Failed");
+                    }
+                }
+            });
+        }
+        else
+        {
+            if(user.get("riderOrDriver") != null){
+                Log.i("info", "redirecting as " + user.get("riderOrDriver"));
+            }
+        }
 
     }
 
@@ -100,5 +130,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    public void getStarted(View v)
+    {
+        Log.i("info", String.valueOf(aSwitch.isChecked()));
+        String userType="rider";
+        if(aSwitch.isChecked()){
+            userType="driver";
+        }
+        ParseUser.getCurrentUser().put("riderOrDriver",userType);
+    }
 
 }
