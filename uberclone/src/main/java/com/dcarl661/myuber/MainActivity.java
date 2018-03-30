@@ -1,6 +1,9 @@
 package com.dcarl661.myuber;
 
+import android.content.Intent;
+import android.location.Location;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
@@ -11,6 +14,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Button;
 import android.widget.Switch;
+import android.widget.Toast;
 
 import com.parse.LogInCallback;
 import com.parse.Parse;
@@ -21,10 +25,14 @@ import com.parse.ParseObject;
 import com.parse.ParseUser;
 import com.parse.SaveCallback;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements IGPSActivity {
 
     Switch aSwitch;
     Button button;
+
+    public dcGPS gps                     = null;
+    private volatile Location blackboard = null;
+    public int bkCount                   = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,9 +107,32 @@ public class MainActivity extends AppCompatActivity {
         {
             if(user.get("riderOrDriver") != null){
                 Log.i("info", "redirecting as " + user.get("riderOrDriver"));
+                redirectActivity();
             }
         }
 
+    }
+    public void startGPS()
+    {
+        if(null!=gps){
+            if(!gps.isRunning()) gps.resumeGPS();
+            blackboard=null;
+        }
+        else
+        {
+            gps=new dcGPS(this, getApplicationContext());
+        }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        startGPS();
     }
 
     @Override
@@ -129,7 +160,7 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-
+    //the button click
     public void getStarted(View v)
     {
         Log.i("info", String.valueOf(aSwitch.isChecked()));
@@ -138,6 +169,23 @@ public class MainActivity extends AppCompatActivity {
             userType="driver";
         }
         ParseUser.getCurrentUser().put("riderOrDriver",userType);
+        redirectActivity();
     }
 
+    public void redirectActivity(){
+        if(ParseUser.getCurrentUser().get("riderOrDriver")=="rider"){
+            Intent intent = new Intent(getApplicationContext(),RiderActivity.class);
+        }
+    }
+
+    @Override
+    public void locationChanged(Location loc) {
+        this.blackboard=loc;
+    }
+
+    @Override
+    public void displayGPSSettingsDialog() {
+        Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+        Toast.makeText(this, "You don't have GPS permissions set.", Toast.LENGTH_SHORT).show();
+    }
 }
