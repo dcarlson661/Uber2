@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Uber2.iml" filepath="$PROJECT_DIR$/Uber2.iml" />
-      <module fileurl="file://C:\dcper\C2\Uber2\uberclone\app.iml" filepath="C:\dcper\C2\Uber2\uberclone\app.iml" />
       <module fileurl="file://$PROJECT_DIR$/uberclone/uberclone.iml" filepath="$PROJECT_DIR$/uberclone/uberclone.iml" />
     </modules>
   </component>

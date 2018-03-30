@@ -1,11 +1,18 @@
 package com.dcarl661.myuber;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -25,7 +32,13 @@ import com.parse.ParseObject;
 import com.parse.ParseUser;
 import com.parse.SaveCallback;
 
-public class MainActivity extends AppCompatActivity implements IGPSActivity {
+import java.util.List;
+import java.util.Locale;
+
+public class MainActivity
+        extends AppCompatActivity
+        implements IGPSActivity
+{
 
     Switch aSwitch;
     Button button;
@@ -70,19 +83,19 @@ public class MainActivity extends AppCompatActivity implements IGPSActivity {
         });
 
 
-        Parse.enableLocalDatastore(this);
-        // Add your initialization code here
-        Parse.initialize(new Parse.Configuration.Builder(getApplicationContext())
-                .applicationId("d3f31d2d4d68a6908ecee1892314a90b7d9a00e7")
-                .clientKey("ad7d23c82478f30d7f96dd738e60bc1a7314e082")
-                .server("http://ec2-13-57-220-78.us-west-1.compute.amazonaws.com/parse/")
-                .build()
-        );
-        //ParseUser.enableAutomaticUser();
-        ParseACL defaultACL = new ParseACL();
-        defaultACL.setPublicReadAccess(true);
-        defaultACL.setPublicWriteAccess(true);
-        ParseACL.setDefaultACL(defaultACL, true);
+//        Parse.enableLocalDatastore(this);
+//        // Add your initialization code here
+//        Parse.initialize(new Parse.Configuration.Builder(getApplicationContext())
+//                .applicationId("d3f31d2d4d68a6908ecee1892314a90b7d9a00e7")
+//                .clientKey("ad7d23c82478f30d7f96dd738e60bc1a7314e082")
+//                .server("http://ec2-13-57-220-78.us-west-1.compute.amazonaws.com/parse/")
+//                .build()
+//        );
+//        //ParseUser.enableAutomaticUser();
+//        ParseACL defaultACL = new ParseACL();
+//        defaultACL.setPublicReadAccess(true);
+//        defaultACL.setPublicWriteAccess(true);
+//        ParseACL.setDefaultACL(defaultACL, true);
 
         ////////////////Put all my stuff here
 
@@ -111,6 +124,16 @@ public class MainActivity extends AppCompatActivity implements IGPSActivity {
             }
         }
 
+        ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+        gps                           = new dcGPS(this);
+        boolean useNetworkGPSProvider = true;  //normally a checkbox and a saved preference
+        if(useNetworkGPSProvider){//.isChecked()){
+            gps.setProvider("network");
+        }
+        else{
+            gps.setProvider("gps");
+        }
+
     }
     public void startGPS()
     {
@@ -120,13 +143,34 @@ public class MainActivity extends AppCompatActivity implements IGPSActivity {
         }
         else
         {
-            gps=new dcGPS(this, getApplicationContext());
+            gps=new dcGPS(this);
+        }
+    }
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
+    {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 1) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    gps.resumeGPS();
+                }
+            }
         }
     }
 
     @Override
     protected void onStart() {
         super.onStart();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if(null!=gps){
+            gps.stopGPS();
+            blackboard=null;
+        }
     }
 
     @Override
@@ -169,23 +213,79 @@ public class MainActivity extends AppCompatActivity implements IGPSActivity {
             userType="driver";
         }
         ParseUser.getCurrentUser().put("riderOrDriver",userType);
-        redirectActivity();
+        ParseUser.getCurrentUser().saveInBackground(new SaveCallback() {
+            @Override
+            public void done(ParseException e) {
+                redirectActivity();;
+            }
+        });
     }
 
-    public void redirectActivity(){
-        if(ParseUser.getCurrentUser().get("riderOrDriver")=="rider"){
+    public void redirectActivity()
+    {
+        if(ParseUser.getCurrentUser().get("riderOrDriver").equals("rider"))
+        {
             Intent intent = new Intent(getApplicationContext(),RiderActivity.class);
+            startActivity(intent);
+        }
+        else {
+            Intent intent=new Intent(getApplicationContext(),ViewRequestsActivity.class);
+            startActivity(intent);
         }
     }
 
-    @Override
-    public void locationChanged(Location loc) {
+    public void locationChanged(Location loc)
+    {
+        //called by dcGPS.java
         this.blackboard=loc;
+        bkCount++;
+        Log.d("gpsInfo", "Main-Longitude: " + loc.getLongitude());
+        Log.d("gpsInfo", "Main-Latitude: "  + loc.getLatitude());
+        Log.d("gpsInfo", "Main-Provider: "  + loc.getProvider());
+        Log.d("gpsInfo", "Main-Accuracy: "  + loc.getAccuracy());
+        if(null!=blackboard)
+        {
+            String sLat =Double.toString(blackboard.getLatitude());
+            String sLon =Double.toString(blackboard.getLongitude());
+            String fs   =String.format    ("locChg %d,%s,%s %s",
+                    bkCount,sLat,sLon,blackboard.getProvider()  );
+            //ToDo figure out how to update this UIThread thing gpsList.add(0,fs);
+            //TextViewSeeGPSInfo.setText(fs);
+        }
+        //20180220 TESTing from android c2 course
+        boolean geocode=true; //turn off after test
+        if(geocode)
+        {
+            Geocoder geocoder = new Geocoder(getApplicationContext(), Locale.getDefault());
+            try {
+                List<Address> listAddresses = geocoder.getFromLocation(blackboard.getLatitude(),blackboard.getLongitude(),1);
+                if (listAddresses != null && listAddresses.size() > 0) {
+                    String address = "";
+                    if (listAddresses.get(0).getThoroughfare() != null) {
+                        address += listAddresses.get(0).getThoroughfare() + " ";
+                    }
+                    if (listAddresses.get(0).getLocality() != null) {
+                        address += listAddresses.get(0).getLocality() + " ";
+                    }
+                    if (listAddresses.get(0).getPostalCode() != null) {
+                        address += listAddresses.get(0).getPostalCode() + " ";
+                    }
+                    if (listAddresses.get(0).getAdminArea() != null) {
+                        address += listAddresses.get(0).getAdminArea();
+                    }
+                    Toast.makeText(getApplicationContext(), address, Toast.LENGTH_SHORT).show();
+                    Log.i("Address", address);
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }//if test geocode
     }
 
     @Override
     public void displayGPSSettingsDialog() {
         Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-        Toast.makeText(this, "You don't have GPS permissions set.", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "displayGPSDialog Interface called.", Toast.LENGTH_SHORT).show();
     }
 }

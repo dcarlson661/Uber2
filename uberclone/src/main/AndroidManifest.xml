@@ -6,10 +6,12 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS" />
     <!-- 20170920 added to allow gps feature.  i think -->
     <uses-feature android:name="android.hardware.location.gps" />
 
     <application
+        android:name=".StarterApplication"
         android:allowBackup="true"
         android:icon="@drawable/seeicont1"
         android:label="@string/app_name"
@@ -40,7 +42,11 @@
 
         <activity
             android:name=".RiderActivity"
-            android:label="@string/title_activity_rider"></activity>
+            android:label="@string/title_activity_rider" />
+        <activity android:name=".ViewRequestsActivity" />
+        <activity
+            android:name=".DriverLocationActivity"
+            android:label="@string/title_activity_driver_location"></activity>
     </application>
 
 </manifest>
